@@ -14,7 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
@@ -22,12 +22,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -79,24 +81,23 @@ fun AddKeyScreen(
     }
     
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = if (uiState.isEditMode) "Редактировать ключ" else "Новый ключ",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Закрыть"
-                        )
+                    TextButton(onClick = onNavigateBack) {
+                        Text("Отмена", style = MaterialTheme.typography.bodyLarge)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent
                 )
             )
         }
@@ -117,7 +118,7 @@ fun AddKeyScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Выбор платформы (только для нового ключа)
                 if (!uiState.isEditMode) {
@@ -153,7 +154,8 @@ fun AddKeyScreen(
                     onValueChange = viewModel::updateMyName,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("Название ключа") },
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp)
                 )
                 
                 // Заметка
@@ -165,6 +167,7 @@ fun AddKeyScreen(
                     placeholder = { Text("Добавить заметку...") },
                     minLines = 3,
                     maxLines = 6,
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions.Default.copy(
                         imeAction = ImeAction.Done
                     ),
@@ -174,7 +177,6 @@ fun AddKeyScreen(
                 )
                 
                 // API ключ
-                SectionTitle("API Ключ")
                 ApiKeyField(
                     apiKeyValue = uiState.apiKeyValue,
                     onPasteClick = {
@@ -187,7 +189,7 @@ fun AddKeyScreen(
                     }
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.weight(1f))
                 
                 // Кнопка сохранения
                 Button(
@@ -198,6 +200,7 @@ fun AddKeyScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     enabled = viewModel.isFormValid() && !uiState.isSaving,
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -210,7 +213,8 @@ fun AddKeyScreen(
                     } else {
                         Text(
                             text = if (uiState.isEditMode) "Сохранить изменения" else "Сохранить ключ",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White
                         )
                     }
                 }
@@ -226,9 +230,10 @@ fun AddKeyScreen(
 private fun SectionTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.SemiBold
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
     )
 }
 
@@ -259,6 +264,7 @@ private fun PlatformSelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(),
+                shape = RoundedCornerShape(16.dp),
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 colors = OutlinedTextFieldDefaults.colors()
             )
@@ -296,7 +302,8 @@ private fun PlatformSelector(
                 onValueChange = onCustomPlatformNameChanged,
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Название платформы") },
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
             )
         }
     }
@@ -316,7 +323,7 @@ private fun CustomIconPicker(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .clickable(onClick = onPickImage)
                 .padding(16.dp),
@@ -382,41 +389,44 @@ private fun ApiKeyField(
     apiKeyValue: String,
     onPasteClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onPasteClick)
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionTitle("API Ключ")
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onPasteClick)
+                .padding(horizontal = 16.dp, vertical = 24.dp)
         ) {
-            if (apiKeyValue.isEmpty()) {
-                Text(
-                    text = "Нажмите чтобы вставить ключ",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                Text(
-                    text = apiKeyValue,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (apiKeyValue.isEmpty()) {
+                    Text(
+                        text = "Нажмите чтобы вставить ключ",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Text(
+                        text = apiKeyValue,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Icon(
+                    imageVector = Icons.Default.ContentPaste,
+                    contentDescription = "Вставить из буфера",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
-            Icon(
-                imageVector = Icons.Default.ContentPaste,
-                contentDescription = "Вставить из буфера",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
