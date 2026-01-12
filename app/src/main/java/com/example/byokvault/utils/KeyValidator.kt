@@ -3,6 +3,7 @@ package com.example.byokvault.utils
 import com.example.byokvault.data.keystore.KeystoreService
 import com.example.byokvault.data.model.APIKey
 import com.example.byokvault.data.repository.KeyVaultRepository
+import kotlinx.coroutines.flow.firstOrNull
 
 /**
  * Утилита для валидации API ключей
@@ -47,14 +48,8 @@ class KeyValidator(
                 // Найден дубликат - получаем информацию о ключе
                 val existingKey = repository.getKeyByKeystoreId(identifier)
                 if (existingKey != null) {
-                    val platformWithKeys = repository.getPlatformWithKeys(existingKey.platformId)
-                    // Используем collect для получения значения из Flow
-                    var platformName = "Неизвестно"
-                    platformWithKeys.collect { pwk ->
-                        if (pwk != null) {
-                            platformName = pwk.platform.name
-                        }
-                    }
+                    val platformWithKeys = repository.getPlatformWithKeys(existingKey.platformId).firstOrNull()
+                    val platformName = platformWithKeys?.platform?.name ?: "Неизвестно"
                     return DuplicateCheckResult.Duplicate(existingKey, platformName)
                 }
             }

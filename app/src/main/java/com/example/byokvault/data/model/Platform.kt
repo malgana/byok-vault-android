@@ -1,7 +1,9 @@
 package com.example.byokvault.data.model
 
+import androidx.annotation.DrawableRes
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.byokvault.R
 import java.util.Date
 
 /**
@@ -36,18 +38,19 @@ data class Platform(
         )
         
         /**
-         * Маппинг имен платформ на имена drawable ресурсов
+         * Маппинг имен платформ на ID drawable ресурсов
          */
-        fun getAssetIconName(platformName: String): String? {
+        @DrawableRes
+        fun getIconResId(platformName: String): Int? {
             return when (platformName) {
-                "Anthropic" -> "anthropic"
-                "OpenAI" -> "openai"
-                "Gemini" -> "google_ai"
-                "Hailuo" -> "hailuo"
-                "DeepSeek" -> "deepseek"
-                "Reve AI" -> "reve_ai"
-                "GitHub" -> "github"
-                "Google Image Search" -> "google_image_search"
+                "Anthropic" -> R.drawable.anthropic
+                "OpenAI" -> R.drawable.openai
+                "Gemini" -> R.drawable.gemini
+                "Hailuo" -> R.drawable.hailuo
+                "DeepSeek" -> R.drawable.deepseek
+                "Reve AI" -> R.drawable.reveai
+                "GitHub" -> R.drawable.github
+                "Google Image Search" -> R.drawable.google_image_search
                 else -> null
             }
         }
@@ -60,8 +63,9 @@ data class Platform(
         get() = defaultPlatforms.contains(name)
     
     /**
-     * Имя иконки в drawable для предустановленных платформ
+     * ID иконки в drawable для предустановленных платформ
      */
-    val assetIconName: String?
-        get() = if (isDefault) getAssetIconName(name) else null
+    @get:DrawableRes
+    val iconResId: Int?
+        get() = if (isDefault) getIconResId(name) else null
 }

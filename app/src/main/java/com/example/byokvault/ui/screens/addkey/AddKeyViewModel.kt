@@ -15,6 +15,8 @@ import com.example.byokvault.utils.KeyValidator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -75,26 +77,16 @@ class AddKeyViewModel(
             
             try {
                 // Загружаем список платформ
-                val platforms = repository.getAllPlatformsWithKeys()
-                var platformNames = mutableListOf<String>()
-                
-                platforms.collect { list ->
-                    val existingNames = list.map { it.platform.name }
-                    val allNames = (existingNames + Platform.defaultPlatforms).toSet().sorted()
-                    platformNames = (allNames + "New").toMutableList()
-                }
-                
+                val platformsList = repository.getAllPlatformsWithKeys().first()
+                val existingNames = platformsList.map { it.platform.name }
+                val platformNames = (existingNames + Platform.defaultPlatforms).toSet().sorted() + "New"
+
                 // Если редактируем существующий ключ
                 if (editingKeyId != null) {
                     val key = repository.getKeyById(editingKeyId)
                     if (key != null) {
                         val keyValue = keystoreService.get(key.keystoreId) ?: ""
-                        val platformWithKeys = repository.getPlatformWithKeys(key.platformId)
-                        
-                        var platform: Platform? = null
-                        platformWithKeys.collect { pwk ->
-                            platform = pwk?.platform
-                        }
+                        val platform = repository.getPlatformWithKeys(key.platformId).firstOrNull()?.platform
                         
                         _uiState.update { state ->
                             state.copy(
@@ -115,15 +107,13 @@ class AddKeyViewModel(
                 
                 // Если есть предвыбранная платформа
                 if (preselectedPlatformId != null) {
-                    val platformWithKeys = repository.getPlatformWithKeys(preselectedPlatformId)
-                    platformWithKeys.collect { pwk ->
-                        _uiState.update { state ->
-                            state.copy(
-                                selectedPlatformName = pwk?.platform?.name ?: "",
-                                availablePlatforms = platformNames,
-                                isLoading = false
-                            )
-                        }
+                    val platform = repository.getPlatformWithKeys(preselectedPlatformId).firstOrNull()?.platform
+                    _uiState.update { state ->
+                        state.copy(
+                            selectedPlatformName = platform?.name ?: "",
+                            availablePlatforms = platformNames,
+                            isLoading = false
+                        )
                     }
                 } else {
                     _uiState.update { state ->
@@ -225,7 +215,7 @@ class AddKeyViewModel(
             
             try {
                 if (state.isEditMode) {
-                    updateExistingKey(onSuccess)
+                    updateExistingKey(finalPlatformName, onSuccess)
                 } else {
                     // Проверка на дубликат
                     val duplicateCheck = keyValidator.checkForDuplicate(
@@ -300,16 +290,23 @@ class AddKeyViewModel(
     /**
      * Обновить существующий ключ
      */
-    private suspend fun updateExistingKey(onSuccess: () -> Unit) {
+    private suspend fun updateExistingKey(platformName: String, onSuccess: () -> Unit) {
         val state = _uiState.value
         val editingKey = state.editingKey ?: return
         
         try {
+            // Найти или создать платформу
+            val platform = repository.getOrCreatePlatform(
+                name = platformName,
+                customIconData = state.customIconData
+            )
+            
             // Обновляем метаданные
             val noteValue = state.note.trim().ifBlank { null }
-            val updatedKey = editingKey.copy(
+            var updatedKey = editingKey.copy(
                 myName = state.myName,
-                note = noteValue
+                note = noteValue,
+                platformId = platform.id // Обновляем platformId
             )
             
             // Проверяем, изменился ли сам ключ
@@ -323,10 +320,10 @@ class AddKeyViewModel(
                     return
                 }
                 
-                repository.updateKey(updatedKey.copy(isValid = false))
-            } else {
-                repository.updateKey(updatedKey)
+                updatedKey = updatedKey.copy(isValid = false)
             }
+            
+            repository.updateKey(updatedKey)
             
             _uiState.update { it.copy(isSaving = false) }
             onSuccess()
