@@ -37,19 +37,38 @@ fun NavGraph(
         // Экран добавления/редактирования ключа
         composable<Screen.AddKey> { backStackEntry ->
             val args = backStackEntry.toRoute<Screen.AddKey>()
-            // TODO: Реализуем на следующем этапе
+            com.example.byokvault.ui.screens.addkey.AddKeyScreen(
+                keyId = args.keyId,
+                platformId = args.platformId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
         
         // Экран деталей ключа
         composable<Screen.KeyDetail> { backStackEntry ->
             val args = backStackEntry.toRoute<Screen.KeyDetail>()
-            // TODO: Реализуем на следующем этапе
+            com.example.byokvault.ui.screens.keydetail.KeyDetailScreen(
+                keyId = args.keyId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { keyId ->
+                    navController.navigate(Screen.AddKey(keyId = keyId))
+                }
+            )
         }
         
         // Экран списка ключей платформы
         composable<Screen.PlatformKeysList> { backStackEntry ->
             val args = backStackEntry.toRoute<Screen.PlatformKeysList>()
-            // TODO: Реализуем на следующем этапе
+            com.example.byokvault.ui.screens.platformkeys.PlatformKeysListScreen(
+                platformId = args.platformId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToKeyDetail = { keyId ->
+                    navController.navigate(Screen.KeyDetail(keyId))
+                },
+                onNavigateToAddKey = { platformId ->
+                    navController.navigate(Screen.AddKey(platformId = platformId))
+                }
+            )
         }
     }
 }
