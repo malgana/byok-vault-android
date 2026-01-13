@@ -1,15 +1,30 @@
-*.iml
+# Build artifacts
+*.apk
+*.aab
+*.ap_
+*.apks
+*.dex
+
+# Other build outputs
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# Gradle cache
 .gradle
+
+# Local configuration
 /local.properties
+
+# IDE files
+*.iml
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+
+# macOS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
