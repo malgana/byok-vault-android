@@ -179,7 +179,7 @@ SOFTWARE.
 
 ## 🔗 Related Projects
 
-* [BYOK Vault iOS](https://github.com/malgana/keyvault-ios) — iOS version (SwiftUI + SwiftData)
+* [BYOK Vault iOS](https://github.com/malgana/BYOK-Vault-iOS) — iOS version (SwiftUI + SwiftData)
 
 ---
 
