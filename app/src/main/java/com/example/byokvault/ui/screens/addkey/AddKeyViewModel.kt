@@ -10,8 +10,11 @@ import com.example.byokvault.data.keystore.KeystoreService
 import com.example.byokvault.data.model.APIKey
 import com.example.byokvault.data.model.Platform
 import com.example.byokvault.data.repository.KeyVaultRepository
+import com.example.byokvault.data.validation.KeyValidationService
+import com.example.byokvault.data.validation.ValidationResult
 import com.example.byokvault.utils.ImageHelper
 import com.example.byokvault.utils.KeyValidator
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +26,7 @@ import java.util.UUID
 
 /**
  * ViewModel для экрана добавления/редактирования API ключа
+ * Обновлено для соответствия iOS версии с валидацией
  */
 class AddKeyViewModel(
     private val repository: KeyVaultRepository,
@@ -50,6 +54,7 @@ class AddKeyViewModel(
         val isSaving: Boolean = false,
         val isValidating: Boolean = false,
         val validationSuccess: Boolean = false,
+        val validationFailed: Boolean = false,
         
         // Данные
         val availablePlatforms: List<String> = emptyList(),
@@ -183,6 +188,39 @@ class AddKeyViewModel(
     }
     
     /**
+     * Получить финальное имя платформы
+     */
+    private fun getFinalPlatformName(): String {
+        val state = _uiState.value
+        return if (state.selectedPlatformName == "New") {
+            state.customPlatformName.trim()
+        } else {
+            state.selectedPlatformName
+        }
+    }
+    
+    /**
+     * Проверить, поддерживает ли платформа валидацию
+     */
+    fun supportsValidation(): Boolean {
+        return KeyValidationService.supportsValidation(getFinalPlatformName())
+    }
+    
+    /**
+     * Получить текст кнопки
+     */
+    fun getButtonText(): String {
+        val state = _uiState.value
+        return when {
+            state.isEditMode -> "Сохранить изменения"
+            state.validationSuccess -> "Ключ работает"
+            state.validationFailed -> "Сохранить ключ"
+            supportsValidation() -> "Проверить"
+            else -> "Сохранить ключ"
+        }
+    }
+    
+    /**
      * Проверить и сохранить ключ
      */
     fun validateAndSave(onSuccess: () -> Unit) {
@@ -199,11 +237,7 @@ class AddKeyViewModel(
             return
         }
         
-        val finalPlatformName = if (state.selectedPlatformName == "New") {
-            state.customPlatformName.trim()
-        } else {
-            state.selectedPlatformName
-        }
+        val finalPlatformName = getFinalPlatformName()
         
         if (finalPlatformName.isBlank()) {
             showError("Выберите или введите название платформы")
@@ -211,33 +245,75 @@ class AddKeyViewModel(
         }
         
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true) }
+            // Режим редактирования - просто сохраняем
+            if (state.isEditMode) {
+                _uiState.update { it.copy(isSaving = true) }
+                updateExistingKey(finalPlatformName, onSuccess)
+                return@launch
+            }
             
-            try {
-                if (state.isEditMode) {
-                    updateExistingKey(finalPlatformName, onSuccess)
-                } else {
-                    // Проверка на дубликат
-                    val duplicateCheck = keyValidator.checkForDuplicate(
-                        keyValue = state.apiKeyValue
+            // Проверка на дубликат
+            val duplicateCheck = keyValidator.checkForDuplicate(keyValue = state.apiKeyValue)
+            
+            when (duplicateCheck) {
+                is KeyValidator.DuplicateCheckResult.Duplicate -> {
+                    _uiState.update { it.copy(apiKeyValue = "") }
+                    showError(
+                        "Этот ключ уже добавлен: \"${duplicateCheck.existingKey.myName}\" " +
+                        "(${duplicateCheck.platformName})"
                     )
-                    
-                    when (duplicateCheck) {
-                        is KeyValidator.DuplicateCheckResult.Duplicate -> {
-                            _uiState.update { it.copy(isSaving = false, apiKeyValue = "") }
-                            showError(
-                                "Этот ключ уже добавлен: \"${duplicateCheck.existingKey.myName}\" " +
-                                "(${duplicateCheck.platformName})"
-                            )
-                        }
-                        is KeyValidator.DuplicateCheckResult.NotDuplicate -> {
-                            createNewKey(finalPlatformName, onSuccess)
-                        }
-                    }
+                    return@launch
                 }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isSaving = false) }
-                showError("Ошибка сохранения: ${e.message}")
+                is KeyValidator.DuplicateCheckResult.NotDuplicate -> {
+                    // Продолжаем
+                }
+            }
+            
+            // Если валидация уже не прошла ранее - сохраняем без валидации
+            if (state.validationFailed) {
+                _uiState.update { it.copy(isSaving = true) }
+                createNewKey(finalPlatformName, isValid = false, onSuccess = onSuccess)
+                return@launch
+            }
+            
+            // Если платформа поддерживает валидацию - валидируем
+            if (supportsValidation()) {
+                validateAndCreateKey(finalPlatformName, onSuccess)
+            } else {
+                // Для остальных платформ - просто сохраняем
+                _uiState.update { it.copy(isSaving = true) }
+                createNewKey(finalPlatformName, isValid = false, onSuccess = onSuccess)
+            }
+        }
+    }
+    
+    /**
+     * Валидировать и создать ключ
+     */
+    private suspend fun validateAndCreateKey(platformName: String, onSuccess: () -> Unit) {
+        val state = _uiState.value
+        
+        _uiState.update { it.copy(isValidating = true) }
+        
+        val result = KeyValidationService.validateKey(platformName, state.apiKeyValue)
+        
+        _uiState.update { it.copy(isValidating = false) }
+        
+        when (result) {
+            is ValidationResult.Valid -> {
+                // Показываем "Ключ работает"
+                _uiState.update { it.copy(validationSuccess = true) }
+                
+                // Через 1 секунду сохраняем и закрываем
+                delay(1000)
+                createNewKey(platformName, isValid = true, onSuccess = onSuccess)
+            }
+            
+            is ValidationResult.Invalid,
+            is ValidationResult.ServerError,
+            is ValidationResult.NetworkError -> {
+                // Валидация не прошла — меняем кнопку на "Сохранить ключ"
+                _uiState.update { it.copy(validationFailed = true) }
             }
         }
     }
@@ -245,7 +321,7 @@ class AddKeyViewModel(
     /**
      * Создать новый ключ
      */
-    private suspend fun createNewKey(platformName: String, onSuccess: () -> Unit) {
+    private suspend fun createNewKey(platformName: String, isValid: Boolean, onSuccess: () -> Unit) {
         val state = _uiState.value
         
         try {
@@ -264,7 +340,7 @@ class AddKeyViewModel(
                 keystoreId = keystoreId,
                 platformId = platform.id,
                 note = noteValue,
-                isValid = false
+                isValid = isValid
             )
             
             // Сохранить значение ключа в Keystore
@@ -306,7 +382,7 @@ class AddKeyViewModel(
             var updatedKey = editingKey.copy(
                 myName = state.myName,
                 note = noteValue,
-                platformId = platform.id // Обновляем platformId
+                platformId = platform.id
             )
             
             // Проверяем, изменился ли сам ключ
@@ -341,7 +417,9 @@ class AddKeyViewModel(
         _uiState.update { 
             it.copy(
                 errorMessage = message,
-                showError = true
+                showError = true,
+                isValidating = false,
+                isSaving = false
             )
         }
     }
@@ -358,12 +436,23 @@ class AddKeyViewModel(
      */
     fun isFormValid(): Boolean {
         val state = _uiState.value
-        val platformValid = state.selectedPlatformName.isNotBlank() || 
-                          (state.selectedPlatformName == "New" && state.customPlatformName.isNotBlank())
+        val platformValid = if (state.selectedPlatformName == "New") {
+            state.customPlatformName.isNotBlank()
+        } else {
+            state.selectedPlatformName.isNotBlank()
+        }
         
         return state.myName.isNotBlank() && 
                state.apiKeyValue.isNotBlank() && 
                platformValid
+    }
+    
+    /**
+     * Проверить, заблокирована ли кнопка
+     */
+    fun isButtonDisabled(): Boolean {
+        val state = _uiState.value
+        return !isFormValid() || state.isValidating || state.validationSuccess
     }
     
     companion object {

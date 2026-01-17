@@ -4,6 +4,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +15,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
@@ -29,7 +30,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,7 +38,7 @@ import com.example.byokvault.utils.ImageHelper
 
 /**
  * Экран добавления/редактирования API ключа
- * Аналог AddKeyView.swift из iOS версии
+ * Обновлено для соответствия iOS версии с валидацией
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -191,7 +191,26 @@ fun AddKeyScreen(
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                // Кнопка сохранения
+                // Статус валидации
+                if (uiState.validationFailed) {
+                    Text(
+                        text = "Проверка не пройдена",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                
+                // Кнопка сохранения/проверки
+                val buttonColor by animateColorAsState(
+                    targetValue = if (uiState.validationSuccess) {
+                        Color(0xFF34C759) // Зелёный как в iOS
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    label = "buttonColor"
+                )
+                
                 Button(
                     onClick = {
                         viewModel.validateAndSave(onSuccess = onNavigateBack)
@@ -199,22 +218,39 @@ fun AddKeyScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = viewModel.isFormValid() && !uiState.isSaving,
+                    enabled = !viewModel.isButtonDisabled(),
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+                        containerColor = buttonColor
                     )
                 ) {
-                    if (uiState.isSaving) {
+                    if (uiState.isValidating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
                         )
+                    } else if (uiState.validationSuccess) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                            Text(
+                                text = viewModel.getButtonText(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White
+                            )
+                        }
                     } else {
                         Text(
-                            text = if (uiState.isEditMode) "Сохранить изменения" else "Сохранить ключ",
+                            text = viewModel.getButtonText(),
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White
+                            color = if (uiState.validationSuccess) Color.White else MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -240,6 +276,7 @@ private fun SectionTitle(title: String) {
 /**
  * Селектор платформы с выпадающим списком
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlatformSelector(
     selectedPlatform: String,
@@ -277,7 +314,7 @@ private fun PlatformSelector(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = if (platform == "New") "НОВАЯ ПЛАТФОРМА" else platform,
+                                text = if (platform == "New") "NEW" else platform,
                                 color = if (platform == "New") {
                                     MaterialTheme.colorScheme.primary
                                 } else {
@@ -421,11 +458,13 @@ private fun ApiKeyField(
                     )
                 }
                 
-                Icon(
-                    imageVector = Icons.Default.ContentPaste,
-                    contentDescription = "Вставить из буфера",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (apiKeyValue.isEmpty()) {
+                    Icon(
+                        imageVector = Icons.Default.ContentPaste,
+                        contentDescription = "Вставить из буфера",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

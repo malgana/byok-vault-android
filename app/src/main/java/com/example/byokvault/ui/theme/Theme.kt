@@ -5,20 +5,30 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Цветовая схема приложения - зеленый акцент (как в iOS версии)
+/**
+ * Цветовая схема приложения - соответствует iOS версии
+ * Зелёный акцент + градиентные фоны
+ */
+
+// Основной зелёный цвет (как в iOS)
+val GreenPrimary = Color(0xFF34C759)
+val GreenDark = Color(0xFF30B350)
+
+// Фиолетовый для градиентов и акцентов
+val PurpleAccent = Color(0xFF8B5CF6)
+val BlueAccent = Color(0xFF3B82F6)
+
+// Цвета для светлой темы
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF34C759), // Зеленый (как в iOS)
+    primary = GreenPrimary,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFD4F4DD),
     onPrimaryContainer = Color(0xFF002106),
@@ -28,17 +38,18 @@ private val LightColorScheme = lightColorScheme(
     secondaryContainer = Color(0xFFD5E8CE),
     onSecondaryContainer = Color(0xFF101F0F),
     
-    tertiary = Color(0xFF38656A),
+    tertiary = PurpleAccent,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFBCEBF0),
-    onTertiaryContainer = Color(0xFF001F23),
+    tertiaryContainer = Color(0xFFE9DDFF),
+    onTertiaryContainer = Color(0xFF22005D),
     
     error = Color(0xFFBA1A1A),
     errorContainer = Color(0xFFFFDAD6),
     onError = Color.White,
     onErrorContainer = Color(0xFF410002),
     
-    background = Color(0xFFFCFDF6),
+    // Прозрачный фон для градиента
+    background = Color.Transparent,
     onBackground = Color(0xFF1A1C19),
     
     surface = Color(0xFFFCFDF6),
@@ -47,13 +58,16 @@ private val LightColorScheme = lightColorScheme(
     onSurfaceVariant = Color(0xFF424940),
     
     outline = Color(0xFF72796F),
-    inverseOnSurface = Color(0xFFF0F1EB),
+    outlineVariant = Color(0xFFC2C9BD),
+    
     inverseSurface = Color(0xFF2F312D),
-    inversePrimary = Color(0xFF34C759)
+    inverseOnSurface = Color(0xFFF0F1EB),
+    inversePrimary = GreenPrimary
 )
 
+// Цвета для тёмной темы
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF34C759), // Зеленый
+    primary = GreenPrimary,
     onPrimary = Color(0xFF00390F),
     primaryContainer = Color(0xFF005320),
     onPrimaryContainer = Color(0xFFD4F4DD),
@@ -63,17 +77,18 @@ private val DarkColorScheme = darkColorScheme(
     secondaryContainer = Color(0xFF3A4B38),
     onSecondaryContainer = Color(0xFFD5E8CE),
     
-    tertiary = Color(0xFFA0CFD4),
-    onTertiary = Color(0xFF00363B),
-    tertiaryContainer = Color(0xFF1E4D52),
-    onTertiaryContainer = Color(0xFFBCEBF0),
+    tertiary = Color(0xFFCFBDFE),
+    onTertiary = Color(0xFF381E72),
+    tertiaryContainer = Color(0xFF4F378A),
+    onTertiaryContainer = Color(0xFFE9DDFF),
     
     error = Color(0xFFFFB4AB),
     errorContainer = Color(0xFF93000A),
     onError = Color(0xFF690005),
     onErrorContainer = Color(0xFFFFDAD6),
     
-    background = Color(0xFF1A1C19),
+    // Прозрачный фон для градиента
+    background = Color.Transparent,
     onBackground = Color(0xFFE2E3DD),
     
     surface = Color(0xFF1A1C19),
@@ -82,34 +97,29 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = Color(0xFFC2C9BD),
     
     outline = Color(0xFF8C9388),
-    inverseOnSurface = Color(0xFF1A1C19),
+    outlineVariant = Color(0xFF424940),
+    
     inverseSurface = Color(0xFFE2E3DD),
+    inverseOnSurface = Color(0xFF1A1C19),
     inversePrimary = Color(0xFF006E25)
 )
 
 @Composable
 fun BYOKVaultTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color доступен на Android 12+
-    dynamicColor: Boolean = true,
+    // Отключаем dynamic color для консистентности с iOS
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            // Прозрачный статус бар для градиентного фона
+            window.statusBarColor = Color.Transparent.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
